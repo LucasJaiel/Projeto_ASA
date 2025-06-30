@@ -1,0 +1,44 @@
+---
+- hosts: cli
+  become: yes
+  tasks:
+    - name: Instalar Firefox e Xauth
+      apt:
+        name:
+          - firefox-esr
+          - xauth
+        state: present
+
+    - name: Habilitar X11 Forwarding no SSH
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?X11Forwarding'
+        line: 'X11Forwarding yes'
+      notify: restart ssh
+
+    - name: Instalar autofs 
+      apt:
+        name: autofs
+        state: present
+
+    - name: Configurar montagem automática do NFS via autofs
+      copy:
+        dest: /etc/auto.master.d/nfs.autofs
+        content: '/var/nfs /etc/auto.nfs --timeout=60'
+      notify: restart autofs
+
+    - name: Criar arquivo de mapa do autofs # 
+      copy:
+        dest: /etc/auto.nfs
+        content: 'dados -fstype=nfs,rw,soft,intr 192.168.56.105:/dados/nfs'
+      notify: restart autofs
+
+  handlers:
+    - name: restart ssh
+      service:
+        name: sshd
+        state: restarted
+    - name: restart autofs
+      service:
+        name: autofs
+        state: restarted

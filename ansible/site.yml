@@ -1,0 +1,10 @@
+---
+# Playbook Principal - Orquestra toda a configuração
+
+- import_playbook: playbook-comum.yml
+- import_playbook: playbook-arq.yml
+- import_playbook: playbook-db.yml
+- import_playbook: playbook-app.yml
+- import_playbook: playbook-cli.yml
+- import_playbook: playbook-dhcp-renew.yml
+

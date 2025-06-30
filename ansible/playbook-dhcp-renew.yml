@@ -1,0 +1,11 @@
+---
+- hosts: db, app, cli
+  become: yes
+  name: Forcar renovacao do lease DHCP nos clientes (metodo robusto)
+  tasks:
+    - name: Desativar a interface eth1 para limpar leases antigos
+      command: ifdown eth1
+      ignore_errors: yes
+
+    - name: Ativar a interface eth1 para solicitar um novo lease do servidor correto
+      command: ifup eth1
