@@ -1,0 +1,113 @@
+---
+- hosts: arq
+  become: yes
+  tasks:
+    # Instalação e Configuração do DHCP
+    - name: Instalar servidor DHCP (isc-dhcp-server)
+      apt:
+        name: isc-dhcp-server
+        state: present
+
+    - name: Configurar interface de escuta do DHCP
+      lineinfile:
+        path: /etc/default/isc-dhcp-server
+        regexp: '^INTERFACESv4='
+        line: 'INTERFACESv4="eth1"'
+
+    - name: Configurar DHCP
+      copy:
+        dest: /etc/dhcp/dhcpd.conf
+        content: |
+          authoritative;
+          option domain-name "lucas.jaaziel.devops";
+          option domain-name-servers 1.1.1.1, 8.8.8.8;
+          subnet 192.168.56.0 netmask 255.255.255.0 {
+            range 192.168.56.50 192.168.56.100;
+            option routers 192.168.56.1;
+            option broadcast-address 192.168.56.255;
+          }
+          host db {
+            hardware ethernet 08:00:27:82:97:00; # SUBSTITUA PELO MAC REAL DA VM db
+            fixed-address 192.168.56.115;
+          }
+          host app {
+            hardware ethernet 08:00:27:7a:c9:44; # SUBSTITUA PELO MAC REAL DA VM app
+            fixed-address 192.168.56.155;
+          }
+      notify: restart dhcp
+
+    # Instalação e Configuração do LVM
+    - name: Instalar LVM2
+      apt:
+        name: lvm2
+        state: present
+
+    - name: Criar Volume Group (VG) 'dados'
+      lvg:
+        vg: dados
+        pvs: /dev/sdb,/dev/sdc,/dev/sdd
+
+    - name: Criar Logical Volume (LV) 'ifpb' de 15GB
+      lvol:
+        vg: dados
+        lv: ifpb
+        size: 15G
+
+    - name: Formatar LV 'ifpb' com ext4
+      filesystem:
+        fstype: ext4
+        dev: /dev/dados/ifpb
+
+    - name: Criar diretório de montagem /dados
+      file:
+        path: /dados
+        state: directory
+        mode: '0755'
+
+    - name: Montar /dados automaticamente
+      mount:
+        path: /dados
+        src: /dev/dados/ifpb
+        fstype: ext4
+        state: mounted
+
+    # Instalação e Configuração do NFS
+    - name: Instalar servidor NFS
+      apt:
+        name: nfs-kernel-server
+        state: present
+
+    - name: Criar diretório para compartilhamento NFS
+      file:
+        path: /dados/nfs
+        state: directory
+        mode: '0755'
+
+    - name: Criar usuário nfs-ifpb sem shell
+      user:
+        name: nfs-ifpb
+        shell: /usr/sbin/nologin
+        system: yes
+        state: present
+      register: nfs_user_facts    
+
+    - name: Configurar permissões do diretório NFS
+      file:
+        path: /dados/nfs
+        owner: nfs-ifpb
+        group: nfs-ifpb
+        mode: '0775'
+          
+    - name: Configurar compartilhamento NFS em /etc/exports
+      lineinfile:
+        path: /etc/exports
+        line: "/dados/nfs 192.168.56.0/24(rw,sync,all_squash,anonuid={{ nfs_user_facts.uid }},anongid={{ nfs_user_facts.group }})"
+      notify: exportfs
+
+  handlers:
+    - name: restart dhcp
+      service:
+        name: isc-dhcp-server
+        state: restarted
+    - name: exportfs
+      command: "exportfs -ra"

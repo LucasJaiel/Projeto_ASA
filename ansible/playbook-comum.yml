@@ -1,0 +1,123 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+    - name: Atualizar pacotes do sistema (update e upgrade)
+      apt:
+        update_cache: yes
+        upgrade: 'yes'
+        autoremove: yes
+
+    - name: Ajustar o Timezone para America/Recife
+      timezone:
+        name: America/Recife
+
+    - name: Instalar e configurar o servidor NTP (chrony)
+      apt:
+        name: chrony
+        state: present
+
+    - name: Configurar o pool.ntp.br no chrony
+      lineinfile:
+        path: /etc/chrony/chrony.conf
+        regexp: '^pool'
+        line: 'pool pool.ntp.br iburst'
+      notify: restart chrony # Notificação para o handler do chrony
+
+    - name: Criar o grupo 'ifpb'
+      group:
+        name: ifpb
+        state: present
+
+    - name: Criar usuários lucas e jaaziel
+      user:
+        name: "{{ item }}"
+        shell: /bin/bash
+        groups: ifpb
+        append: yes
+        state: present
+      loop:
+        - lucas
+        - jaaziel
+
+    - name: Gerar chaves SSH para os usuários
+      user:
+        name: "{{ item }}"
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+      loop:
+        - lucas
+        - jaaziel
+
+    - name: Permitir que usuários do grupo ifpb tenham acesso de root usando sudo
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%ifpb'
+        line: '%ifpb ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+
+    - name: Instalar cliente NFS
+      apt:
+        name: nfs-common
+        state: present
+
+    - name: Configurar e proteger o servidor SSH
+      block:
+        - name: Criar arquivo da mensagem de boas-vindas (Banner)
+          copy:
+            dest: /etc/issue.net
+            owner: root
+            group: root
+            mode: '0644'
+            content: |
+              Acesso apenas para pessoas com autorização expressa.
+              Seu acesso está sendo monitorado !!!
+          notify: restart ssh # Notificação para o handler do SSH
+
+        - name: Ativar o Banner no SSH
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?Banner'
+            line: 'Banner /etc/issue.net'
+          notify: restart ssh # Notificação para o handler do SSH
+
+        - name: Desativar autenticação por senha
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?PasswordAuthentication'
+            line: 'PasswordAuthentication no'
+          notify: restart ssh # Notificação para o handler do SSH
+
+        - name: Garantir que autenticação por chave pública está ativa
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?PubkeyAuthentication'
+            line: 'PubkeyAuthentication yes'
+          notify: restart ssh # Notificação para o handler do SSH
+
+        - name: Bloquear acesso root via SSH
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?PermitRootLogin'
+            line: 'PermitRootLogin no'
+          notify: restart ssh # Notificação para o handler do SSH
+
+        - name: Permitir acesso apenas aos grupos 'vagrant' e 'ifpb'
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?AllowGroups'
+            line: 'AllowGroups vagrant ifpb'
+          notify: restart ssh # Notificação para o handler do SSH
+
+  handlers:
+    - name: restart chrony
+      service:
+        name: chrony
+        state: restarted
+
+    - name: restart ssh
+      service:
+        name: sshd
+        state: restarted

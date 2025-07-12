@@ -1,0 +1,11 @@
+# Configurações do Projeto
+Include /etc/ssh/sshd_config.d/*.conf
+
+PasswordAuthentication no
+PubkeyAuthentication yes # Permitir apenas autenticação por chaves públicas 
+PermitRootLogin no # Bloquear acesso ao usuário root via SSH 
+AllowGroups vagrant ifpb # Permitir acesso aos grupos vagrant e ifpb 
+Banner /etc/issue.net # Apresentar mensagem de saudação 
+
+# Adicione aqui o restante do conteúdo padrão do seu /etc/ssh/sshd_config, se necessário.
+# Por simplicidade, estamos focando apenas nas diretivas solicitadas.

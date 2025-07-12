@@ -1,0 +1,31 @@
+---
+- hosts: db
+  become: yes
+  tasks:
+    - name: Instalar MariaDB Server 
+      apt:
+        name: mariadb-server
+        state: present
+
+    - name: Instalar autofs 
+      apt:
+        name: autofs
+        state: present
+
+    - name: Configurar montagem automática do NFS via autofs
+      copy:
+        dest: /etc/auto.master.d/nfs.autofs
+        content: '/var/nfs /etc/auto.nfs --timeout=60'
+      notify: restart autofs
+
+    - name: Criar arquivo de mapa do autofs 
+      copy:
+        dest: /etc/auto.nfs
+        content: 'dados -fstype=nfs,rw,soft,intr 192.168.56.105:/dados/nfs'
+      notify: restart autofs
+
+  handlers:
+    - name: restart autofs
+      service:
+        name: autofs
+        state: restarted
