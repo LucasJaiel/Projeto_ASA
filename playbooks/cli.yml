@@ -1,0 +1,42 @@
+---
+- import_playbook: common.yml
+
+- hosts: cli
+  become: true
+  tasks:
+    - name: Instalar pacotes
+      apt:
+        name:
+          - firefox-esr
+          - xauth
+        state: present
+
+    - name: Configurar SSH para X11
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^X11Forwarding'
+        line: 'X11Forwarding yes'
+        state: present
+      notify: restart ssh
+
+    - name: Configurar autofs
+      copy:
+        src: ../files/auto.master
+        dest: /etc/auto.master
+
+    - name: Configurar montagem NFS
+      copy:
+        content: "nfs -fstype=nfs,rw arq.lucas.jaaziel.devops:/dados/nfs"
+        dest: /etc/auto.nfs
+
+    - name: Habilitar e iniciar autofs
+      service:
+        name: autofs
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: restart ssh
+      service:
+        name: ssh
+        state: restarted

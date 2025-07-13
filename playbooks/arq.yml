@@ -1,0 +1,122 @@
+---
+- import_playbook: common.yml
+
+- hosts: arq
+  become: true
+  tasks:
+    - name: Instalar pacotes necessários
+      apt:
+        name:
+          - isc-dhcp-server
+          - nfs-kernel-server
+          - lvm2
+        state: present
+
+    # Configuração DHCP
+    - name: Copiar configuração DHCP
+      copy:
+        content: |
+          option domain-name "lucas.jaaziel.devops";
+          option domain-name-servers 1.1.1.1, 8.8.8.8;
+          default-lease-time 600;
+          max-lease-time 7200;
+          ddns-update-style none;
+          authoritative;
+          subnet 192.168.56.0 netmask 255.255.255.0 {
+            range 192.168.56.50 192.168.56.100;
+            option routers 192.168.56.1;
+            host db { hardware ethernet 08:00:27:11:11:11; fixed-address 192.168.56.115; }
+            host app { hardware ethernet 08:00:27:22:22:22; fixed-address 192.168.56.155; }
+            host cli { hardware ethernet 08:00:27:33:33:33; fixed-address 192.168.56.99; }
+          }
+        dest: /etc/dhcp/dhcpd.conf
+      notify: restart dhcp
+
+    - name: Configurar interface para DHCP
+      lineinfile:
+        path: /etc/default/isc-dhcp-server
+        regexp: '^INTERFACESv4='
+        line: 'INTERFACESv4="eth1"'
+      notify: restart dhcp
+
+    - name: Habilitar serviço DHCP
+      service:
+        name: isc-dhcp-server
+        enabled: yes
+        state: started
+
+    # Configuração LVM
+    - name: Verificar existência dos discos
+      wait_for:
+        path: "/dev/{{ item }}"
+        timeout: 30
+      loop:
+        - sdb
+        - sdc
+        - sdd
+
+    - name: Criar volume group
+      lvg:
+        vg: dados
+        pvs: /dev/sdb,/dev/sdc,/dev/vsd
+        state: present
+
+    - name: Criar logical volume
+      lvol:
+        vg: dados
+        lv: ifpb
+        size: 15G
+        state: present
+
+    - name: Formatar partição
+      filesystem:
+        fstype: ext4
+        dev: /dev/dados/ifpb
+
+    - name: Criar ponto de montagem
+      file:
+        path: /dados
+        state: directory
+
+    - name: Montar partição
+      mount:
+        path: /dados
+        src: /dev/dados/ifpb
+        fstype: ext4
+        state: mounted
+
+    # Configuração NFS
+    - name: Criar diretório NFS
+      file:
+        path: /dados/nfs
+        state: directory
+        owner: nfs-ifpb
+        group: nfs-ifpb
+
+    - name: Criar usuário NFS
+      user:
+        name: nfs-ifpb
+        shell: /usr/sbin/nologin
+
+    - name: Configurar exports
+      copy:
+        content: "/dados/nfs 192.168.56.0/24(rw,sync,no_subtree_check,anonuid=$(id -u nfs-ifpb),anongid=$(id -g nfs-ifpb),no_root_squash)"
+        dest: /etc/exports
+      notify: restart nfs
+
+    - name: Habilitar serviço NFS
+      service:
+        name: nfs-kernel-server
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: restart dhcp
+      service:
+        name: isc-dhcp-server
+        state: restarted
+
+    - name: restart nfs
+      service:
+        name: nfs-kernel-server
+        state: restarted

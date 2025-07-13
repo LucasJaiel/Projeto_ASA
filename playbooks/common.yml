@@ -1,0 +1,71 @@
+---
+- name: Configurações comuns a todos os servidores
+  hosts: all
+  become: true
+  tasks:
+    - name: Atualizar sistema
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: Instalar chrony
+      apt:
+        name: chrony
+        state: present
+
+    - name: Configurar NTP
+      copy:
+        src: ../files/chrony.conf
+        dest: /etc/chrony/chrony.conf
+      notify: restart chrony
+
+    - name: Configurar timezone
+      timezone:
+        name: America/Recife
+
+    - name: Criar grupo ifpb
+      group:
+        name: ifpb
+        state: present
+
+    - name: Criar usuários
+      user:
+        name: "{{ item }}"
+        groups: ifpb
+        shell: /bin/bash
+      loop:
+        - lucas
+        - jaaziel
+
+    - name: Configurar sudo
+      copy:
+        src: ../files/sudoers_ifpb
+        dest: /etc/sudoers.d/ifpb
+        mode: 0440
+
+    - name: Configurar SSH
+      copy:
+        src: ../files/sshd_config
+        dest: /etc/ssh/sshd_config
+      notify: restart ssh
+
+    - name: Configurar banner
+      copy:
+        content: "Acesso apenas para pessoas com autorização expressa.\nSeu acesso está sendo monitorado !!!"
+        dest: /etc/issue.net
+
+    - name: Instalar cliente NFS
+      apt:
+        name: nfs-common
+        state: present
+
+  handlers:
+    - name: restart chrony
+      service:
+        name: chrony
+        state: restarted
+
+    - name: restart ssh
+      service:
+        name: ssh
+        state: restarted

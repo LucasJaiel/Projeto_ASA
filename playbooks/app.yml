@@ -1,0 +1,32 @@
+---
+- import_playbook: common.yml
+
+- hosts: app
+  become: true
+  tasks:
+    - name: Instalar Apache
+      apt:
+        name: apache2
+        state: present
+
+    - name: Configurar site
+      copy:
+        src: ../files/index.html
+        dest: /var/www/html/index.html
+        mode: 0644
+
+    - name: Configurar autofs
+      copy:
+        src: ../files/auto.master
+        dest: /etc/auto.master
+
+    - name: Configurar montagem NFS
+      copy:
+        content: "nfs -fstype=nfs,rw arq.lucas.jaaziel.devops:/dados/nfs"
+        dest: /etc/auto.nfs
+
+    - name: Habilitar e iniciar autofs
+      service:
+        name: autofs
+        enabled: yes
+        state: started

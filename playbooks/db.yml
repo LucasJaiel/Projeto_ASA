@@ -1,0 +1,26 @@
+---
+- import_playbook: common.yml
+
+- hosts: db
+  become: true
+  tasks:
+    - name: Instalar MariaDB
+      apt:
+        name: mariadb-server
+        state: present
+
+    - name: Configurar autofs
+      copy:
+        src: ../files/auto.master
+        dest: /etc/auto.master
+
+    - name: Configurar montagem NFS
+      copy:
+        content: "nfs -fstype=nfs,rw arq.lucas.jaaziel.devops:/dados/nfs"
+        dest: /etc/auto.nfs
+
+    - name: Habilitar e iniciar autofs
+      service:
+        name: autofs
+        enabled: yes
+        state: started
