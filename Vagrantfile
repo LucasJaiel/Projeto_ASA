@@ -3,9 +3,8 @@
 
 Vagrant.configure("2") do |config|
   config.vm.box = "debian/bookworm64"
-  config.ssh.insert_key = false
   config.vm.synced_folder ".", "/vagrant", disabled: true
-
+  config.ssh.insert_key = false
   # Desabilitar DHCP do Virtualbox
   config.trigger.before :"Vagrant::Action::Builtin::WaitforCommunicator", type: :action do |t|
      t.warn = "Interrompe o servidor dhcp do virtualbox"

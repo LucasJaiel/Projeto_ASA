@@ -33,6 +33,7 @@
         name: "{{ item }}"
         groups: ifpb
         shell: /bin/bash
+        create_home: yes
       loop:
         - lucas
         - jaaziel
@@ -43,10 +44,103 @@
         dest: /etc/sudoers.d/ifpb
         mode: 0440
 
-    - name: Configurar SSH
+    # 1. Verificar se a chave SSH existe no host
+    - name: Verificar chave SSH do host
+      local_action:
+        module: stat
+        path: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
+      register: ssh_key_stat
+      run_once: true
+      become: false
+
+    # 2. Criar chave SSH se não existir
+    - name: Criar chave SSH se não existir
+      local_action:
+        module: openssh_keypair
+        path: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa"
+        type: rsa
+        size: 2048
+        force: false
+      run_once: true
+      become: false
+      when: not ssh_key_stat.stat.exists
+
+    # 3. Verificar novamente após criação
+    - name: Verificar chave SSH após criação
+      local_action:
+        module: stat
+        path: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
+      register: ssh_key_stat_after
+      run_once: true
+      become: false
+
+    # 4. Ler o conteúdo da chave SSH
+    - name: Ler conteúdo da chave SSH
+      local_action:
+        module: slurp
+        src: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
+      register: ssh_key_content
+      run_once: true
+      become: false
+      when: ssh_key_stat_after.stat.exists
+
+    # 5. Debug - mostrar informações
+    - name: Debug - Informações da chave SSH
+      debug:
+        msg:
+          - "Chave existe: {{ ssh_key_stat_after.stat.exists }}"
+          - "Caminho: {{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
+          - "Usuário atual: {{ lookup('env', 'USER') }}"
+      run_once: true
+# 7. Criar diretórios .ssh
+    - name: Garantir que o diretório .ssh exista
+      file:
+        path: "/home/{{ item }}/.ssh"
+        state: directory
+        owner: "{{ item }}"
+        group: "{{ item }}"
+        mode: "0700"
+      loop:
+        - vagrant
+        - lucas
+        - jaaziel
+
+    # 8. Copiar chave SSH usando o conteúdo lido
+    - name: Copiar chave SSH para usuários
+      copy:
+        content: "{{ ssh_key_content.content | b64decode }}"
+        dest: "/home/{{ item }}/.ssh/authorized_keys"
+        owner: "{{ item }}"
+        group: "{{ item }}"
+        mode: "0600"
+      loop:
+        - vagrant
+        - lucas
+        - jaaziel
+      when: ssh_key_content is defined and ssh_key_content.content is defined
+
+    # 9. Verificar se os arquivos foram criados
+    - name: Verificar authorized_keys criados
+      stat:
+        path: "/home/{{ item }}/.ssh/authorized_keys"
+      register: auth_keys_check
+      loop:
+        - vagrant
+        - lucas
+        - jaaziel
+
+    # 10. Debug - mostrar status dos arquivos
+    - name: Debug - Status dos arquivos authorized_keys
+      debug:
+        msg: "{{ item.item }}: {{ 'OK' if item.stat.exists else 'FALHOU' }}"
+      loop: "{{ auth_keys_check.results }}"
+
+    # Configuração SSH temporária para debug
+    - name: Configurar SSH (versão debug)
       copy:
         src: ../files/sshd_config
         dest: /etc/ssh/sshd_config
+        backup: yes
       notify: restart ssh
 
     - name: Configurar banner
@@ -58,6 +152,16 @@
       apt:
         name: nfs-common
         state: present
+
+    # Debug: Verificar configuração SSH
+    - name: Verificar status do SSH
+      shell: systemctl is-active ssh
+      register: ssh_status
+      ignore_errors: yes
+
+    - name: Mostrar status SSH
+      debug:
+        msg: "SSH status: {{ ssh_status.stdout }}"
 
   handlers:
     - name: restart chrony
