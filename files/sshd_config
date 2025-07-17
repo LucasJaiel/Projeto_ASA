@@ -1,3 +1,4 @@
+PubkeyAuthentication yes
 PermitRootLogin no
 PasswordAuthentication no
 AllowGroups vagrant ifpb
