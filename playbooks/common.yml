@@ -136,12 +136,12 @@
       loop: "{{ auth_keys_check.results }}"
 
     # Configuração SSH temporária para debug
-    - name: Configurar SSH (versão debug)
-      copy:
-        src: ../files/sshd_config
-        dest: /etc/ssh/sshd_config
-        backup: yes
-      notify: restart ssh
+    #    - name: Configurar SSH (versão debug)
+    #      copy:
+    #        src: ../files/sshd_config
+    #        dest: /etc/ssh/sshd_config
+    #        backup: yes
+    #      notify: restart ssh
 
     - name: Configurar banner
       copy:

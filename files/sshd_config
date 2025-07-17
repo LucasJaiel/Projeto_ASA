@@ -3,3 +3,4 @@ PermitRootLogin no
 PasswordAuthentication no
 AllowGroups vagrant ifpb
 Banner /etc/issue.net
+Subsystem sftp /usr/lib/openssh/sftp-server

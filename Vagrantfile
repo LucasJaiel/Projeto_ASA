@@ -20,13 +20,8 @@ Vagrant.configure("2") do |config|
   config.vm.define "arq" do |arq|
     arq.vm.hostname = "arq.lucas.jaaziel.devops"
     arq.vm.network :private_network, ip: "192.168.56.105"
-    
     (0..2).each do |i|
-      arq.vm.disk :disk, 
-        size: "10GB", 
-        name: "arq-disk#{i}",
-        type: "sata",  # Forçar tipo SATA para aparecer como /dev/sd[b-d]
-        storage_controller: "SATA Controller"
+      arq.vm.disk :disk, size: "10GB", name: "disk-#{i}"
     end
 
     arq.vm.provision "ansible" do |ansible|
