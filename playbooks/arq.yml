@@ -58,7 +58,7 @@
     - name: Criar volume group
       lvg:
         vg: dados
-        pvs: /dev/sdb,/dev/sdc,/dev/vsd
+        pvs: /dev/sdb,/dev/sdc,/dev/sdd
         state: present
 
     - name: Criar logical volume
@@ -86,17 +86,17 @@
         state: mounted
 
     # Configuração NFS
+    - name: Criar usuário NFS
+      user:
+        name: nfs-ifpb
+        shell: /usr/sbin/nologin
+
     - name: Criar diretório NFS
       file:
         path: /dados/nfs
         state: directory
         owner: nfs-ifpb
         group: nfs-ifpb
-
-    - name: Criar usuário NFS
-      user:
-        name: nfs-ifpb
-        shell: /usr/sbin/nologin
 
     - name: Configurar exports
       copy:

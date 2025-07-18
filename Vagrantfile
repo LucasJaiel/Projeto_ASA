@@ -20,10 +20,22 @@ Vagrant.configure("2") do |config|
   config.vm.define "arq" do |arq|
     arq.vm.hostname = "arq.lucas.jaaziel.devops"
     arq.vm.network :private_network, ip: "192.168.56.105"
-    (0..2).each do |i|
-      arq.vm.disk :disk, size: "10GB", name: "disk-#{i}"
-    end
+    arq.vm.provider "virtualbox" do |v|
+       unless File.exist?("arq_disk1.vdi")
+         v.customize ["createhd", "--filename", "arq_disk1.vdi", "--size", 10 * 1024] # 10 GB
+       end
+       unless File.exist?("arq_disk2.vdi")
+         v.customize ["createhd", "--filename", "arq_disk2.vdi", "--size", 10 * 1024] # 10 GB
+       end
+       unless File.exist?("arq_disk3.vdi")
+         v.customize ["createhd", "--filename", "arq_disk3.vdi", "--size", 10 * 1024] # 10 GB
+       end
 
+       v.customize ["storageattach", :id, "--storagectl", "SATA Controller", "--port", 1, "--device", 0, "--type", "hdd", "--medium", "arq_disk1.vdi"]
+       v.customize ["storageattach", :id, "--storagectl", "SATA Controller", "--port", 2, "--device", 0, "--type", "hdd", "--medium", "arq_disk2.vdi"]
+       v.customize ["storageattach", :id, "--storagectl", "SATA Controller", "--port", 3, "--device", 0, "--type", "hdd", "--medium", "arq_disk3.vdi"]
+    
+    end
     arq.vm.provision "ansible" do |ansible|
       ansible.playbook = "playbooks/arq.yml"
       ansible.inventory_path = "inventory.ini"
