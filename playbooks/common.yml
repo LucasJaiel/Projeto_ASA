@@ -1,0 +1,103 @@
+---
+- name: Configurações básicas para todos os hosts
+  hosts: all
+  become: true
+  tasks:
+    - name: Atualizar sistema
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: Instalar chrony (NTP)
+      apt:
+        name: chrony
+        state: present
+
+    - name: Configurar servidores NTP
+      copy:
+        content: |
+          pool pool.ntp.br iburst
+        dest: /etc/chrony/chrony.conf
+      notify: restart chrony
+
+    - name: Definir fuso horário
+      command: timedatectl set-timezone America/Recife
+
+    - name: Criar grupo ifpb
+      group:
+        name: ifpb
+        state: present
+
+    - name: Criar usuários
+      user:
+        name: "{{ item }}"
+        groups: ifpb
+        shell: /bin/bash
+      loop:
+        - lucas
+        - jaaziel
+
+    # Configurar SSH para os usuários
+    - name: Criar diretório .ssh para os usuários
+      file:
+        path: "/home/{{ item }}/.ssh"
+        state: directory
+        owner: "{{ item }}"
+        group: "{{ item }}"
+        mode: '0700'
+      loop:
+        - lucas
+        - jaaziel
+
+    - name: Copiar chaves públicas para authorized_keys
+      copy:
+        src: "../files/keys/{{ item.user }}_id_rsa.pub"
+        dest: "/home/{{ item.user }}/.ssh/authorized_keys"
+        owner: "{{ item.user }}"
+        group: "{{ item.user }}"
+        mode: '0600'
+      loop:
+        - { user: 'lucas' }
+        - { user: 'jaaziel' }
+
+    - name: Configurar SSH
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^PermitRootLogin', line: 'PermitRootLogin no' }
+        - { regexp: '^X11Forwarding', line: 'X11Forwarding yes' }
+        - { regexp: '^PasswordAuthentication', line: 'PasswordAuthentication no' }
+        - { regexp: '^AllowGroups', line: 'AllowGroups vagrant ifpb' }
+        - { regexp: '^Banner', line: 'Banner /etc/issue.net' }
+      notify: restart ssh
+
+    - name: Configurar banner SSH
+      copy:
+        content: |
+          Acesso apenas para pessoas com autorização expressa.
+          Seu acesso está sendo monitorado !!!
+        dest: /etc/issue.net
+
+    - name: Permitir sudo para grupo ifpb
+      copy:
+        src: ../files/sudoers-ifpb
+        dest: /etc/sudoers.d/ifpb
+        mode: 0440
+
+    - name: Instalar cliente NFS
+      apt:
+        name: nfs-common
+        state: present
+
+  handlers:
+    - name: restart chrony
+      service:
+        name: chronyd
+        state: restarted
+
+    - name: restart ssh
+      service:
+        name: ssh
+        state: restarted
