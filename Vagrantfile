@@ -42,19 +42,7 @@ Vagrant.configure("2") do |config|
     end
   end
 
-  # 2. Após 'up', adicionar chaves ao agente SSH
-  config.trigger.after :up do |trigger|
-    trigger.name = "Adicionar chaves ao SSH Agent"
-    trigger.run do |t|
-      t.inline = <<-SHELL
-        eval "$(ssh-agent -s)"
-        ssh-add files/keys/lucas_id_rsa 2>/dev/null || echo "Chave lucas já adicionada"
-        ssh-add files/keys/jaaziel_id_rsa 2>/dev/null || echo "Chave jaaziel já adicionada"
-        echo "Chaves adicionadas ao SSH Agent!"
-      SHELL
-    end
-  end
- #3. Antes de se comunicar com a VM, desligar o DHCP da vboxnet0
+ #2. Antes de se comunicar com a VM, desligar o DHCP da vboxnet0
   config.trigger.before :"Vagrant::Action::Builtin::WaitForCommunicator", type: :action do |t|
     t.warn = "Interrompe o servidor dhcp do virtualbox"
     t.run = {inline: "vboxmanage dhcpserver modify --interface vboxnet0 --disable"}
