@@ -30,7 +30,6 @@ Vagrant.configure("2") do |config|
         else
           echo "Chaves já existem (lucas_id_rsa e jaaziel_id_rsa). Nada foi feito."
         fi       
->>>>>>> 77ec6a8fb5bbb8efb92f5fb9aaabbd449eca6422
       SHELL
     end
   end
