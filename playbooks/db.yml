@@ -15,19 +15,38 @@
         name: autofs
         state: present
 
-    - name: Configurar autofs
+    - name: Criar diretório base para montagem NFS
+      file:
+        path: /var/nfs
+        state: directory
+        mode: '0755'
+
+    - name: Configurar auto.master para montagem direta
       copy:
         content: |
-          /nfs /etc/auto.nfs
+          /- /etc/auto.nfs
         dest: /etc/auto.master
+        owner: root
+        group: root
+        mode: '0644'
 
-    - name: Configurar ponto de montagem
+    - name: Configurar auto.nfs para o compartilhamento /dados/nfs
       copy:
         content: |
-          * -fstype=nfs4 arq.lucas.jaaziel.devops:/dados/nfs/&
+          /var/nfs arq.lucas.jaaziel.devops:/dados/nfs -fstype=nfs4,rw,soft,intr
         dest: /etc/auto.nfs
+        owner: root
+        group: root
+        mode: '0644'
 
-    - name: Reiniciar autofs
-      service:
+    - name: Habilitar e reiniciar autofs
+      systemd:
         name: autofs
+        enabled: yes
         state: restarted
+
+    - name: Garantir que o serviço rpcbind esteja ativo (necessário para NFS)
+      systemd:
+        name: rpcbind
+        enabled: yes
+        state: started

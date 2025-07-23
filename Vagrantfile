@@ -22,7 +22,9 @@ Vagrant.configure("2") do |config|
       t.inline = <<-SHELL
         mkdir -p files/keys
         ssh-keygen -t rsa -b 4096 -f files/keys/lucas_id_rsa -q -N "" -y
+        chmod 600 files/keys/lucas_id_rsa
         ssh-keygen -t rsa -b 4096 -f files/keys/jaaziel_id_rsa -q -N "" -y
+        chmod 600 files/keys/jaaziel_id_rsa
       SHELL
     end
   end

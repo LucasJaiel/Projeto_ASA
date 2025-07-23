@@ -77,34 +77,56 @@
         name: nfs-kernel-server
         state: present
 
-    - name: Criar usuário nfs-ifpb
+    - name: Criar usuário nfs-ifpb (sem shell para segurança)
       user:
         name: nfs-ifpb
         shell: /usr/sbin/nologin
         system: yes
         state: present
+        create_home: no
 
-    - name: Criar diretório compartilhado
+    - name: Obter UID e GID do usuário nfs-ifpb
+      command: id -u nfs-ifpb
+      register: nfs_ifpb_uid
+
+    - name: Obter GID do usuário nfs-ifpb
+      command: id -g nfs-ifpb
+      register: nfs_ifpb_gid
+
+    - name: Criar diretório compartilhado NFS
       file:
         path: /dados/nfs
         state: directory
         owner: nfs-ifpb
         group: nfs-ifpb
+        mode: '0755'
 
-    - name: Configurar exports
-      copy:
-        content: |
-          /dados/nfs 192.168.56.0/24(rw,sync,no_subtree_check,all_squash,anonuid=$(id -u nfs-ifpb),anongid=$(id -g nfs-ifpb))
-        dest: /etc/exports
-      notify: restart nfs
+    - name: Configurar exportações NFS
+      lineinfile:
+        path: /etc/exports
+        line: "/dados/nfs 192.168.56.0/24(rw,sync,no_subtree_check,all_squash,anonuid={{ nfs_ifpb_uid.stdout }},anongid={{ nfs_ifpb_gid.stdout }})"
+        create: true
+        state: present
+        regexp: '^/dados/nfs'
 
-  handlers:
+    - name: Exportar compartilhamentos NFS
+      command: exportfs -ra
+
+    - name: Habilitar e iniciar serviço NFS
+      systemd:
+        name: nfs-kernel-server
+        enabled: yes
+        state: started
+
+    - name: Habilitar e iniciar serviço rpcbind
+      systemd:
+        name: rpcbind
+        enabled: yes
+        state: started
+
+  handlers: # <-- Nova seção para handlers
     - name: restart dhcp
-      service:
+      ansible.builtin.service:
         name: isc-dhcp-server
         state: restarted
 
-    - name: restart nfs
-      service:
-        name: nfs-kernel-server
-        state: restarted

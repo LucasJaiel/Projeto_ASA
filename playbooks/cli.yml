@@ -18,25 +18,37 @@
         regexp: '^X11Forwarding'
         line: 'X11Forwarding yes'
       notify: restart ssh
-
     - name: Instalar autofs
       apt:
         name: autofs
         state: present
 
-    - name: Configurar autofs
+    - name: Criar diretório base para montagem NFS
+      file:
+        path: /var/nfs
+        state: directory
+        mode: '0755'
+
+    - name: Configurar auto.master para autofs
       copy:
         content: |
-          /nfs /etc/auto.nfs
+          /var/nfs /etc/auto.nfs --timeout=60
         dest: /etc/auto.master
 
-    - name: Configurar ponto de montagem
+    - name: Configurar auto.nfs para montagem automática
       copy:
         content: |
-          * -fstype=nfs4 arq.lucas.jaaziel.devops:/dados/nfs/&
+          * -fstype=nfs4,rw,soft,intr arq.lucas.jaaziel.devops:/dados/nfs/&
         dest: /etc/auto.nfs
 
-    - name: Reiniciar autofs
-      service:
+    - name: Habilitar e reiniciar autofs
+      systemd:
         name: autofs
+        enabled: yes
+        state: restarted
+
+  handlers:
+    - name: restart ssh
+      service:
+        name: ssh
         state: restarted
