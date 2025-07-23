@@ -20,11 +20,24 @@ Vagrant.configure("2") do |config|
     trigger.name = "Gerar chaves SSH"
     trigger.run do |t|
       t.inline = <<-SHELL
+<<<<<<< HEAD
         mkdir -p files/keys
         ssh-keygen -t rsa -b 4096 -f files/keys/lucas_id_rsa -q -N "" -y
         chmod 600 files/keys/lucas_id_rsa
         ssh-keygen -t rsa -b 4096 -f files/keys/jaaziel_id_rsa -q -N "" -y
         chmod 600 files/keys/jaaziel_id_rsa
+=======
+        # Verifica se as chaves NÃO existem antes de gerá-las
+        if [ ! -f "files/keys/lucas_id_rsa" ] || [ ! -f "files/keys/jaaziel_id_rsa" ]; then
+          mkdir -p files/keys
+          ssh-keygen -t rsa -b 4096 -f files/keys/lucas_id_rsa -q -N "" -y
+          ssh-keygen -t rsa -b 4096 -f files/keys/jaaziel_id_rsa -q -N "" -y
+          chmod 600 files/keys/lucas_id_rsa files/keys/jaaziel_id_rsa
+          echo "Chaves SSH geradas com sucesso!"
+        else
+          echo "Chaves já existem (lucas_id_rsa e jaaziel_id_rsa). Nada foi feito."
+        fi       
+>>>>>>> 77ec6a8fb5bbb8efb92f5fb9aaabbd449eca6422
       SHELL
     end
   end
