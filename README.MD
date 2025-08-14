@@ -8,9 +8,9 @@ Período: 2025.1
 
 Integrantes
 
-    Lucas - Matrícula: 20232380005
+    Lucas  - Matrícula: 20232380005
 
-    Jaaziel - Matrícula: 20232380015
+    Jaaziel  - Matrícula: 20232380015
 
 1. Objetivo do Projeto
 
